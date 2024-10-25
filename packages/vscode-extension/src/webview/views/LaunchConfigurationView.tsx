@@ -7,7 +7,6 @@ import { AddCustomApplicationRoot, LaunchConfigUpdater } from "../../common/Laun
 import Select from "../components/shared/Select";
 import { useModal } from "../providers/ModalProvider";
 import Button from "../components/shared/Button";
-import { useWorkspaceConfig } from "../providers/WorkspaceConfigProvider";
 
 function LaunchConfigurationView() {
   const {
@@ -266,8 +265,8 @@ function AppRootConfiguration({
     openModal("", <CustomAppRootConfirmationView newAppRoot={newAppRoot} />);
   };
 
-  const availableAppRoots = applicationRoots.map((appRoot) => {
-    return { value: appRoot, label: appRoot };
+  const availableAppRoots = applicationRoots.map((applicationRoot) => {
+    return { value: applicationRoot, label: applicationRoot };
   });
 
   availableAppRoots.push({ value: "Auto", label: "Auto" });
