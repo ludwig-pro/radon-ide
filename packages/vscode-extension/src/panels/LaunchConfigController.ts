@@ -10,6 +10,7 @@ import {
   extensionContext,
   findAppRootCandidates,
   getAppRootFolder,
+  getCurrentLaunchConfig,
 } from "../utilities/extensionContext";
 import { findXcodeProject, findXcodeScheme } from "../utilities/xcode";
 import { Logger } from "../Logger";
@@ -24,35 +25,35 @@ export class LaunchConfigController implements Disposable, LaunchConfig {
   private configListener: Disposable;
 
   constructor() {
-    const getCurrentConfig = (): LaunchConfigurationOptions => {
-      const launchConfiguration = workspace.getConfiguration(
-        "launch",
-        workspace.workspaceFolders![0].uri
-      );
+    // const getCurrentConfig = (): LaunchConfigurationOptions => {
+    //   const launchConfiguration = workspace.getConfiguration(
+    //     "launch",
+    //     workspace.workspaceFolders![0].uri
+    //   );
 
-      const configurations = launchConfiguration.get<Array<Record<string, any>>>("configurations")!;
+    //   const configurations = launchConfiguration.get<Array<Record<string, any>>>("configurations")!;
 
-      const RNIDEConfiguration = configurations.find(
-        ({ type }) => type === "react-native-ide" || type === "radon-ide" // for compatibility we want to support old configuration type name
-      );
+    //   const RNIDEConfiguration = configurations.find(
+    //     ({ type }) => type === "react-native-ide" || type === "radon-ide" // for compatibility we want to support old configuration type name
+    //   );
 
-      if (!RNIDEConfiguration) {
-        return {};
-      }
+    //   if (!RNIDEConfiguration) {
+    //     return {};
+    //   }
 
-      const { android, appRoot, ios, isExpo, metroConfigPath, env } = RNIDEConfiguration;
+    //   const { android, appRoot, ios, isExpo, metroConfigPath, env } = RNIDEConfiguration;
 
-      return { android, appRoot, ios, isExpo, metroConfigPath, env };
-    };
+    //   return { android, appRoot, ios, isExpo, metroConfigPath, env };
+    // };
 
-    this.config = getCurrentConfig();
+    this.config = getCurrentLaunchConfig();
 
     this.configListener = workspace.onDidChangeConfiguration((event: ConfigurationChangeEvent) => {
       if (!event.affectsConfiguration("launch")) {
         return;
       }
 
-      this.config = getCurrentConfig();
+      this.config = getCurrentLaunchConfig();
 
       this.eventEmitter.emit("launchConfigChange", this.config);
     });
@@ -99,11 +100,7 @@ export class LaunchConfigController implements Disposable, LaunchConfig {
     const oldCustomApplicationRoots =
       extensionContext.workspaceState.get<string[] | undefined>(CUSTOM_APPLICATION_ROOTS_KEY) ?? [];
 
-    Logger.debug("Frytki", oldCustomApplicationRoots);
-
     const newCustomApplicationRoots = [...oldCustomApplicationRoots, appRoot];
-
-    Logger.debug("Frytki new", newCustomApplicationRoots);
 
     extensionContext.workspaceState.update(
       CUSTOM_APPLICATION_ROOTS_KEY,
@@ -122,13 +119,6 @@ export class LaunchConfigController implements Disposable, LaunchConfig {
       extensionContext.workspaceState.get<string[] | undefined>(CUSTOM_APPLICATION_ROOTS_KEY) ?? [];
 
     const applicationRoots = [...applicationRootsCandidates, ...customApplicationRoots];
-
-    Logger.debug(
-      "Frytki get",
-      applicationRootsCandidates,
-      customApplicationRoots,
-      applicationRoots
-    );
 
     if (!applicationRoots) {
       Logger.debug(`Could not find any application roots.`);

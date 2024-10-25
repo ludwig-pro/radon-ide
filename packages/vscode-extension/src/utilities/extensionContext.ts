@@ -3,6 +3,7 @@ import { Logger } from "../Logger";
 import { findFilesInWorkspace, isWorkspaceRoot } from "./common";
 import { getLaunchConfiguration } from "./launchConfiguration";
 import fs from "fs";
+import { LaunchConfigurationOptions } from "../common/LaunchConfig";
 
 let _extensionContext: ExtensionContext | null = null;
 
@@ -20,6 +21,27 @@ export const extensionContext = new Proxy<ExtensionContext>({} as ExtensionConte
 });
 
 let _appRootFolder: string | null = null;
+
+export const getCurrentLaunchConfig = (): LaunchConfigurationOptions => {
+  const launchConfiguration = workspace.getConfiguration(
+    "launch",
+    workspace.workspaceFolders![0].uri
+  );
+
+  const configurations = launchConfiguration.get<Array<Record<string, any>>>("configurations")!;
+
+  const RNIDEConfiguration = configurations.find(
+    ({ type }) => type === "react-native-ide" || type === "radon-ide" // for compatibility we want to support old configuration type name
+  );
+
+  if (!RNIDEConfiguration) {
+    return {};
+  }
+
+  const { android, appRoot, ios, isExpo, metroConfigPath, env } = RNIDEConfiguration;
+
+  return { android, appRoot, ios, isExpo, metroConfigPath, env };
+};
 
 export function setAppRootFolder(appRootFolder: string) {
   _appRootFolder = appRootFolder;

@@ -58,7 +58,6 @@ export default function LaunchConfigProvider({ children }: PropsWithChildren) {
       key: K,
       value: LaunchConfigurationOptions[K] | "Auto"
     ) => {
-      console.log("frytki update");
       const newState = { ...config, [key]: value };
       setConfig(newState);
       launchConfig.update(key, value);

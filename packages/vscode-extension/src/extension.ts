@@ -22,14 +22,14 @@ import { Logger, enableDevModeLogging } from "./Logger";
 import {
   configureAppRootFolder,
   extensionContext,
+  getAppRootFolder,
+  getCurrentLaunchConfig,
   setExtensionContext,
 } from "./utilities/extensionContext";
 import { command, setupPathEnv } from "./utilities/subprocess";
 import { SidePanelViewProvider } from "./panels/SidepanelViewProvider";
 import { PanelLocation } from "./common/WorkspaceConfig";
-import { getLaunchConfiguration } from "./utilities/launchConfiguration";
 import { Project } from "./project/project";
-import { findFilesInWorkspace, isWorkspaceRoot } from "./utilities/common";
 import { Platform } from "./utilities/platform";
 
 const OPEN_PANEL_ON_ACTIVATION = "open_panel_on_activation";
@@ -229,29 +229,44 @@ export async function activate(context: ExtensionContext) {
     )
   );
 
+  const setupAppRoot = async () => {
+    const appRoot = await configureAppRootFolder();
+    if (!appRoot) {
+      return;
+    }
+
+    if (Platform.OS === "macos") {
+      try {
+        await setupPathEnv(appRoot);
+      } catch (error) {
+        window.showWarningMessage(
+          "Error when setting up PATH environment variable, RN IDE may not work correctly.",
+          "Dismiss"
+        );
+      }
+    }
+  };
+
   context.subscriptions.push(
-    workspace.onDidChangeConfiguration((event: ConfigurationChangeEvent) => {
+    workspace.onDidChangeConfiguration(async (event: ConfigurationChangeEvent) => {
       if (event.affectsConfiguration("RadonIDE.panelLocation")) {
         showIDEPanel();
+      }
+      if (event.affectsConfiguration("launch")) {
+        const config = getCurrentLaunchConfig();
+        const oldAppRoot = getAppRootFolder();
+        if (config.appRoot === oldAppRoot) {
+          return;
+        }
+        await setupAppRoot();
+
+        // restart here
+        Project.currentProject?.restart(true, false, true);
       }
     })
   );
 
-  const appRoot = await configureAppRootFolder();
-  if (!appRoot) {
-    return;
-  }
-
-  if (Platform.OS === "macos") {
-    try {
-      await setupPathEnv(appRoot);
-    } catch (error) {
-      window.showWarningMessage(
-        "Error when setting up PATH environment variable, RN IDE may not work correctly.",
-        "Dismiss"
-      );
-    }
-  }
+  await setupAppRoot();
 
   extensionActivated();
 }
