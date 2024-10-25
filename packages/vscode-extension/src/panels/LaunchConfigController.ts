@@ -6,10 +6,17 @@ import {
   LaunchConfigEventMap,
   LaunchConfigurationOptions,
 } from "../common/LaunchConfig";
-import { getAppRootFolder } from "../utilities/extensionContext";
+import {
+  extensionContext,
+  findAppRootCandidates,
+  getAppRootFolder,
+} from "../utilities/extensionContext";
 import { findXcodeProject, findXcodeScheme } from "../utilities/xcode";
 import { Logger } from "../Logger";
 import { getIosSourceDir } from "../builders/buildIOS";
+import path from "path";
+
+const CUSTOM_APPLICATION_ROOTS_KEY = "custom_application_roots_key";
 
 export class LaunchConfigController implements Disposable, LaunchConfig {
   private config: LaunchConfigurationOptions;
@@ -86,6 +93,49 @@ export class LaunchConfigController implements Disposable, LaunchConfig {
     }
 
     await configurations.update("configurations", newConfigurations);
+  }
+
+  async addCustomApplicationRoot(appRoot: string) {
+    const oldCustomApplicationRoots =
+      extensionContext.workspaceState.get<string[] | undefined>(CUSTOM_APPLICATION_ROOTS_KEY) ?? [];
+
+    Logger.debug("Frytki", oldCustomApplicationRoots);
+
+    const newCustomApplicationRoots = [...oldCustomApplicationRoots, appRoot];
+
+    Logger.debug("Frytki new", newCustomApplicationRoots);
+
+    extensionContext.workspaceState.update(
+      CUSTOM_APPLICATION_ROOTS_KEY,
+      newCustomApplicationRoots
+    ) ?? [];
+
+    this.eventEmitter.emit("applicationRootsChanged");
+  }
+
+  async getAvailableApplicationRoots() {
+    const workspacePath = workspace.workspaceFolders![0].uri.fsPath;
+    const applicationRootsCandidates = (await findAppRootCandidates()).map((candidate) => {
+      return "./" + path.relative(workspacePath, candidate);
+    });
+    const customApplicationRoots =
+      extensionContext.workspaceState.get<string[] | undefined>(CUSTOM_APPLICATION_ROOTS_KEY) ?? [];
+
+    const applicationRoots = [...applicationRootsCandidates, ...customApplicationRoots];
+
+    Logger.debug(
+      "Frytki get",
+      applicationRootsCandidates,
+      customApplicationRoots,
+      applicationRoots
+    );
+
+    if (!applicationRoots) {
+      Logger.debug(`Could not find any application roots.`);
+      return [];
+    }
+
+    return applicationRoots;
   }
 
   async getAvailableXcodeSchemes() {
