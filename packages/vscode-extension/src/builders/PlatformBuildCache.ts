@@ -1,8 +1,9 @@
 import path, { join } from "path";
 import fs from "fs";
+import { createHash } from "crypto";
 import { createFingerprintAsync } from "@expo/fingerprint";
 import { Logger } from "../Logger";
-import { extensionContext, getAppRootFolder } from "../utilities/extensionContext";
+import { getAppRootFolder } from "../utilities/extensionContext";
 import { DevicePlatform } from "../common/DeviceManager";
 import { IOSBuildResult } from "./buildIOS";
 import { AndroidBuildResult } from "./buildAndroid";
@@ -10,7 +11,6 @@ import { getLaunchConfiguration } from "../utilities/launchConfiguration";
 import { runfingerprintCommand } from "./customBuild";
 import { calculateMD5, getOrCreateBuildCachesDir } from "../utilities/common";
 import { BuildResult } from "./BuildManager";
-import { createHash } from "crypto";
 
 const IGNORE_PATHS = [
   path.join("android", ".gradle/**/*"),
