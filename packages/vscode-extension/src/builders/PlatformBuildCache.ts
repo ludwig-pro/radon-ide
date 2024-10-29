@@ -61,7 +61,7 @@ export class PlatformBuildCache {
   /**
    * Passed fingerprint should be calculated at the time build is started.
    */
-  public async storeBuildCache(buildFingerprint: string, build: BuildResult) {
+  public async storeCache(buildFingerprint: string, build: BuildResult) {
     const appPath = await getAppHash(getAppPath(build));
 
     const cache = JSON.stringify({
@@ -73,14 +73,14 @@ export class PlatformBuildCache {
     fs.writeFileSync(this.appBuildCachePath, cache);
   }
 
-  public async clearBuildCache() {
+  public async clearCache() {
     if (!fs.existsSync(this.appBuildCachePath)) {
       return;
     }
     fs.rmSync(this.appBuildCachePath);
   }
 
-  public getBuildCache() {
+  public getCache() {
     if (!fs.existsSync(this.appBuildCachePath)) {
       Logger.debug("No cache found.");
       return undefined;
@@ -96,7 +96,7 @@ export class PlatformBuildCache {
   }
 
   public async getBuild(currentFingerprint: string) {
-    const cache: BuildCacheInfo | undefined = this.getBuildCache();
+    const cache: BuildCacheInfo | undefined = this.getCache();
 
     if (!cache) {
       Logger.debug("No cached build found.");
@@ -135,7 +135,7 @@ export class PlatformBuildCache {
 
   public async isCacheStale() {
     const currentFingerprint = await this.calculateFingerprint();
-    const { fingerprint } = this.getBuildCache() ?? {};
+    const { fingerprint } = this.getCache() ?? {};
 
     return currentFingerprint !== fingerprint;
   }
