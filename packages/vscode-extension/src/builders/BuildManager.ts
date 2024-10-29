@@ -68,7 +68,7 @@ export class BuildManager {
           "Build cache is being invalidated",
           forceCleanBuild ? "on request" : "due to build dependencies change"
         );
-        await buildCache.clearCache();
+        await buildCache.clearBuildCache();
       } else {
         const cachedBuild = await buildCache.getBuild(currentFingerprint);
         if (cachedBuild) {
@@ -135,7 +135,7 @@ export class BuildManager {
         );
       }
 
-      await buildCache.storeBuild(buildFingerprint, buildResult);
+      await buildCache.storeBuildCache(buildFingerprint, buildResult);
 
       return buildResult;
     };

@@ -1,4 +1,4 @@
-import path from "path";
+import path, { join } from "path";
 import fs from "fs";
 import { createFingerprintAsync } from "@expo/fingerprint";
 import { Logger } from "../Logger";
@@ -8,11 +8,9 @@ import { IOSBuildResult } from "./buildIOS";
 import { AndroidBuildResult } from "./buildAndroid";
 import { getLaunchConfiguration } from "../utilities/launchConfiguration";
 import { runfingerprintCommand } from "./customBuild";
-import { calculateMD5 } from "../utilities/common";
+import { calculateMD5, getOrCreateBuildCachesDir } from "../utilities/common";
 import { BuildResult } from "./BuildManager";
-
-const ANDROID_BUILD_CACHE_KEY = "android_build_cache";
-const IOS_BUILD_CACHE_KEY = "ios_build_cache";
+import { createHash } from "crypto";
 
 const IGNORE_PATHS = [
   path.join("android", ".gradle/**/*"),
@@ -46,28 +44,57 @@ export class PlatformBuildCache {
 
   private constructor(private readonly platform: DevicePlatform) {}
 
-  get cacheKey() {
-    return this.platform === DevicePlatform.Android ? ANDROID_BUILD_CACHE_KEY : IOS_BUILD_CACHE_KEY;
+  get appBuildCachePath() {
+    const appBuildCachesDir = getOrCreateAppBuildCachesDir();
+
+    let appBuildCachePath;
+
+    if (this.platform === DevicePlatform.Android) {
+      appBuildCachePath = join(appBuildCachesDir, "android.json");
+    } else {
+      appBuildCachePath = join(appBuildCachesDir, "ios.json");
+    }
+
+    return appBuildCachePath;
   }
 
   /**
    * Passed fingerprint should be calculated at the time build is started.
    */
-  public async storeBuild(buildFingerprint: string, build: BuildResult) {
+  public async storeBuildCache(buildFingerprint: string, build: BuildResult) {
     const appPath = await getAppHash(getAppPath(build));
-    await extensionContext.workspaceState.update(this.cacheKey, {
+
+    const cache = JSON.stringify({
       fingerprint: buildFingerprint,
       buildHash: appPath,
       buildResult: build,
     });
+
+    fs.writeFileSync(this.appBuildCachePath, cache);
   }
 
-  public async clearCache() {
-    await extensionContext.workspaceState.update(this.cacheKey, undefined);
+  public async clearBuildCache() {
+    fs.rmSync(this.appBuildCachePath);
+  }
+
+  public getBuildCache() {
+    if (!fs.existsSync(this.appBuildCachePath)) {
+      Logger.debug("No cache found.");
+      return undefined;
+    }
+    let cache: BuildCacheInfo;
+    try {
+      cache = JSON.parse(fs.readFileSync(this.appBuildCachePath).toString());
+    } catch (e) {
+      Logger.warn("Error parsing build cache", e);
+      return undefined;
+    }
+    return cache;
   }
 
   public async getBuild(currentFingerprint: string) {
-    const cache = extensionContext.workspaceState.get<BuildCacheInfo>(this.cacheKey);
+    const cache: BuildCacheInfo | undefined = this.getBuildCache();
+
     if (!cache) {
       Logger.debug("No cached build found.");
       return undefined;
@@ -105,8 +132,7 @@ export class PlatformBuildCache {
 
   public async isCacheStale() {
     const currentFingerprint = await this.calculateFingerprint();
-    const { fingerprint } =
-      extensionContext.workspaceState.get<BuildCacheInfo>(this.cacheKey) ?? {};
+    const { fingerprint } = this.getBuildCache() ?? {};
 
     return currentFingerprint !== fingerprint;
   }
@@ -157,4 +183,16 @@ function getAppPath(build: BuildResult) {
 
 async function getAppHash(appPath: string) {
   return (await calculateMD5(appPath)).digest("hex");
+}
+
+function getAppRootPathHash() {
+  return createHash("md5").update(getAppRootFolder()).digest("hex");
+}
+
+function getOrCreateAppBuildCachesDir() {
+  const appBuildCachesDirLocation = join(getOrCreateBuildCachesDir(), getAppRootPathHash());
+  if (!fs.existsSync(appBuildCachesDirLocation)) {
+    fs.mkdirSync(appBuildCachesDirLocation, { recursive: true });
+  }
+  return appBuildCachesDirLocation;
 }
