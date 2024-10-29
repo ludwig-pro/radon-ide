@@ -74,6 +74,9 @@ export class PlatformBuildCache {
   }
 
   public async clearBuildCache() {
+    if (!fs.existsSync(this.appBuildCachePath)) {
+      return;
+    }
     fs.rmSync(this.appBuildCachePath);
   }
 
