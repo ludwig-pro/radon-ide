@@ -2,7 +2,7 @@ import path, { join } from "path";
 import fs from "fs";
 import { createFingerprintAsync } from "@expo/fingerprint";
 import { Logger } from "../Logger";
-import { getAppRootFolder } from "../utilities/extensionContext";
+import { extensionContext, getAppRootFolder } from "../utilities/extensionContext";
 import { DevicePlatform } from "../common/DeviceManager";
 import { IOSBuildResult } from "./buildIOS";
 import { AndroidBuildResult } from "./buildAndroid";
@@ -11,6 +11,7 @@ import { runfingerprintCommand } from "./customBuild";
 import { calculateMD5 } from "../utilities/common";
 import { BuildResult } from "./BuildManager";
 import { getAppCache, removeAppCache, setAppCache } from "../utilities/appCaches";
+import { workspace } from "vscode";
 
 const ANDROID_BUILD_CACHE_KEY = "android_build_cache";
 const IOS_BUILD_CACHE_KEY = "ios_build_cache";
@@ -170,4 +171,21 @@ function getAppPath(build: BuildResult) {
 
 async function getAppHash(appPath: string) {
   return (await calculateMD5(appPath)).digest("hex");
+}
+
+export function migrateOldBuildCachesToNewStorage() {
+  const platformKeys = [ANDROID_BUILD_CACHE_KEY, IOS_BUILD_CACHE_KEY];
+
+  platformKeys.forEach((platformKey) => {
+    const cache = extensionContext.workspaceState.get<BuildCacheInfo>(platformKey);
+    if (!cache) {
+      return;
+    }
+
+    // the old method stored json objects instead of strings
+    setAppCache(platformKey, JSON.stringify(cache));
+
+    // remove the old cache afterwords
+    extensionContext.workspaceState.update(platformKey, undefined);
+  });
 }
