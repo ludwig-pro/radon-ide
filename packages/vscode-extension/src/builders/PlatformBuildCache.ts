@@ -1,4 +1,4 @@
-import path, { join } from "path";
+import path from "path";
 import fs from "fs";
 import { createFingerprintAsync } from "@expo/fingerprint";
 import { Logger } from "../Logger";
@@ -11,7 +11,6 @@ import { runfingerprintCommand } from "./customBuild";
 import { calculateMD5 } from "../utilities/common";
 import { BuildResult } from "./BuildManager";
 import { getAppCache, removeAppCache, setAppCache } from "../utilities/appCaches";
-import { workspace } from "vscode";
 
 const ANDROID_BUILD_CACHE_KEY = "android_build_cache";
 const IOS_BUILD_CACHE_KEY = "ios_build_cache";
