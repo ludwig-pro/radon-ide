@@ -1,6 +1,5 @@
 import path, { join } from "path";
 import fs from "fs";
-import { createHash } from "crypto";
 import { createFingerprintAsync } from "@expo/fingerprint";
 import { Logger } from "../Logger";
 import { getAppRootFolder } from "../utilities/extensionContext";
@@ -9,8 +8,12 @@ import { IOSBuildResult } from "./buildIOS";
 import { AndroidBuildResult } from "./buildAndroid";
 import { getLaunchConfiguration } from "../utilities/launchConfiguration";
 import { runfingerprintCommand } from "./customBuild";
-import { calculateMD5, getOrCreateBuildCachesDir } from "../utilities/common";
+import { calculateMD5 } from "../utilities/common";
 import { BuildResult } from "./BuildManager";
+import { getAppCache, removeAppCache, setAppCache } from "../utilities/appCaches";
+
+const ANDROID_BUILD_CACHE_KEY = "android_build_cache";
+const IOS_BUILD_CACHE_KEY = "ios_build_cache";
 
 const IGNORE_PATHS = [
   path.join("android", ".gradle/**/*"),
@@ -44,18 +47,8 @@ export class PlatformBuildCache {
 
   private constructor(private readonly platform: DevicePlatform) {}
 
-  get appBuildCachePath() {
-    const appBuildCachesDir = getOrCreateAppBuildCachesDir();
-
-    let appBuildCachePath;
-
-    if (this.platform === DevicePlatform.Android) {
-      appBuildCachePath = join(appBuildCachesDir, "android.json");
-    } else {
-      appBuildCachePath = join(appBuildCachesDir, "ios.json");
-    }
-
-    return appBuildCachePath;
+  get cacheKey() {
+    return this.platform === DevicePlatform.Android ? ANDROID_BUILD_CACHE_KEY : IOS_BUILD_CACHE_KEY;
   }
 
   /**
@@ -70,29 +63,20 @@ export class PlatformBuildCache {
       buildResult: build,
     });
 
-    fs.writeFileSync(this.appBuildCachePath, cache);
+    setAppCache(this.cacheKey, cache);
   }
 
   public async clearCache() {
-    if (!fs.existsSync(this.appBuildCachePath)) {
-      return;
-    }
-    fs.rmSync(this.appBuildCachePath);
+    removeAppCache(this.cacheKey);
   }
 
   public getCache() {
-    if (!fs.existsSync(this.appBuildCachePath)) {
-      Logger.debug("No cache found.");
+    const buildCache = getAppCache(this.cacheKey);
+    if (!buildCache) {
       return undefined;
     }
-    let cache: BuildCacheInfo;
-    try {
-      cache = JSON.parse(fs.readFileSync(this.appBuildCachePath).toString());
-    } catch (e) {
-      Logger.warn("Error parsing build cache", e);
-      return undefined;
-    }
-    return cache;
+
+    return JSON.parse(buildCache);
   }
 
   public async getBuild(currentFingerprint: string) {
@@ -186,16 +170,4 @@ function getAppPath(build: BuildResult) {
 
 async function getAppHash(appPath: string) {
   return (await calculateMD5(appPath)).digest("hex");
-}
-
-function getAppRootPathHash() {
-  return createHash("md5").update(getAppRootFolder()).digest("hex");
-}
-
-function getOrCreateAppBuildCachesDir() {
-  const appBuildCachesDirLocation = join(getOrCreateBuildCachesDir(), getAppRootPathHash());
-  if (!fs.existsSync(appBuildCachesDirLocation)) {
-    fs.mkdirSync(appBuildCachesDirLocation, { recursive: true });
-  }
-  return appBuildCachesDirLocation;
 }

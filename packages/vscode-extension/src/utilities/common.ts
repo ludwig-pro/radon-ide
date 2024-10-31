@@ -94,8 +94,8 @@ export function getOrCreateAppDownloadsDir() {
   return downloadsDirLocation;
 }
 
-export function getOrCreateBuildCachesDir() {
-  const buildCachesDirLocation = join(getAppCachesDir(), "buildCaches");
+export function getOrCreateAppsCachesDir() {
+  const buildCachesDirLocation = join(getAppCachesDir(), "appsCaches");
   if (!fs.existsSync(buildCachesDirLocation)) {
     fs.mkdirSync(buildCachesDirLocation, { recursive: true });
   }
